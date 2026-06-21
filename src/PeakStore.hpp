@@ -111,8 +111,8 @@ public:
         rev_status = ctx->active_storage->impl_addEdge(dest, src);
       }
       if (!rev_status.isOK()) {
-        // Propagate reverse-insert failure to caller so API reflects partial
-        // application rather than silently reporting full success.
+        // Rollback the first edge insertion
+        ctx->active_storage->impl_removeEdge(src, dest);
         return rev_status;
       }
       ctx->events.edgeAdded.emit({dest, src, weight});
@@ -135,10 +135,13 @@ public:
       if (!isDirected) {
         auto rev_result = ctx->active_storage->impl_removeEdge(dest, src);
         if (!rev_result.second.isOK()) {
-          // If reverse removal fails, propagate that failure to caller so the
-          // API can surface the partial failure instead of silently
-          // returning success.
-          return rev_result;
+          // Rollback the first edge removal by re-inserting it
+          if (ctx->metadata->isGraphWeighted()) {
+            ctx->active_storage->impl_addEdge(src, dest, result.first);
+          } else {
+            ctx->active_storage->impl_addEdge(src, dest);
+          }
+          return {EdgeType(), rev_result.second};
         }
         GraphEvents<VertexType, EdgeType>::onEdgeRemove(*ctx, dest, src);
       }
@@ -171,6 +174,8 @@ public:
       PeakStatus resp2 =
           ctx->active_storage->impl_updateEdge(dest, src, newWeight);
       if (!resp2.isOK()) {
+        // Rollback the first update
+        ctx->active_storage->impl_updateEdge(src, dest, currentWeight);
         return {resp2, EdgeType()};
       }
     }
