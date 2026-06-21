@@ -68,3 +68,10 @@ TEST_F(CinderGraphFunctionalTest, UpdateCustomEdge) {
 
   EXPECT_FALSE(customGraph.updateEdge(v2, v1, e1).second); // edge doesn't exist
 }
+
+TEST_F(CinderGraphFunctionalTest, UpdateSelfLoopRejected) {
+  auto intGraph = builder.CreatePrimitiveWeightedGraph(GraphOpts::directed);
+  EXPECT_TRUE(intGraph.addVertex(1).second);
+  auto [new_weight, status] = intGraph.updateEdge(1, 1, 50);
+  EXPECT_FALSE(status);
+}

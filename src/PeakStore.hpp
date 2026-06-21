@@ -121,6 +121,9 @@ public:
   }
   std::pair<EdgeType, PeakStatus> removeEdge(const VertexType &src,
                                              const VertexType &dest) {
+    if (src == dest) {
+      return {EdgeType(), PeakStatus::InvalidArgument("Self loops are not allowed.")};
+    }
     ctx->log(LogLevel::INFO,
              "Called adjacency:removeEdge() for " + edgeStr(src, dest));
     auto result = ctx->active_storage->impl_removeEdge(src, dest);
@@ -129,7 +132,7 @@ public:
 
       bool isDirected =
           ctx->create_options->hasOption(GraphCreationOptions::Directed);
-      if (!isDirected && src != dest) {
+      if (!isDirected) {
         auto rev_result = ctx->active_storage->impl_removeEdge(dest, src);
         if (!rev_result.second.isOK()) {
           // If reverse removal fails, propagate that failure to caller so the
@@ -146,6 +149,9 @@ public:
   std::pair<PeakStatus, EdgeType> updateEdge(const VertexType &src,
                                              const VertexType &dest,
                                              const EdgeType &newWeight) {
+    if (src == dest) {
+      return {PeakStatus::InvalidArgument("Self loops are not allowed."), EdgeType()};
+    }
     ctx->log(LogLevel::INFO, "Called adjacency:updateEdge() for " +
                                  weightedEdgeStr(src, dest, newWeight));
 

@@ -84,3 +84,9 @@ TEST_F(CinderGraphFunctionalTest, AddCustomVertexAndEdge) {
   EXPECT_EQ(customGraph.numVertices(), 3);
   EXPECT_EQ(customGraph.numEdges(), 2);
 }
+
+TEST_F(CinderGraphFunctionalTest, AddSelfLoopRejected) {
+  auto intGraph = builder.CreatePrimitiveWeightedGraph(GraphOpts::directed);
+  EXPECT_TRUE(intGraph.addVertex(1).second);
+  EXPECT_FALSE(intGraph.addEdge(1, 1, 5).second);
+}

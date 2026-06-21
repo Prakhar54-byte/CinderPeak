@@ -132,3 +132,10 @@ TEST_F(CinderGraphFunctionalTest, RemoveCustomEdge) {
 
   EXPECT_EQ(customGraph.numEdges(), 0);
 }
+
+TEST_F(CinderGraphFunctionalTest, RemoveSelfLoopRejected) {
+  auto intGraph = builder.CreatePrimitiveWeightedGraph(GraphOpts::directed);
+  EXPECT_TRUE(intGraph.addVertex(1).second);
+  auto [weight, status] = intGraph.removeEdge(1, 1);
+  EXPECT_FALSE(status);
+}
