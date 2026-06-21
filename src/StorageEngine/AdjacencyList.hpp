@@ -23,6 +23,7 @@ private:
   std::unordered_map<CinderPeak::VertexId,
                      std::vector<std::pair<CinderPeak::VertexId, EdgeType>>>
       _adj;
+  std::unordered_map<CinderPeak::VertexId, std::vector<CinderPeak::VertexId>> _in_edges;
   std::unordered_map<CinderPeak::VertexId, VertexType> _vertex_data;
   std::unordered_map<VertexType, CinderPeak::VertexId, VertexHasher<VertexType>>
       _vertex_lookup;
@@ -53,6 +54,7 @@ private:
 public:
   AdjacencyList(const GraphRuntime &rtime) : runtime{rtime} {
     _adj.reserve(1024);
+    _in_edges.reserve(1024);
     _vertex_data.reserve(1024);
     _vertex_lookup.reserve(1024);
   }
@@ -87,6 +89,7 @@ public:
       _vertex_lookup.try_emplace(v, assignedId);
       _vertex_data.try_emplace(assignedId, v);
       _adj.try_emplace(assignedId);
+      _in_edges.try_emplace(assignedId);
     }
 
     // perform string construction and logging outside of the lock to avoid
@@ -110,6 +113,7 @@ public:
       _vertex_lookup.try_emplace(v, id);
       _vertex_data.try_emplace(id, v);
       _adj.try_emplace(id);
+      _in_edges.try_emplace(id);
     }
     runtime.log(LogLevel::INFO, "Vertex Added successfully.");
 
@@ -140,6 +144,7 @@ public:
     // Append neighbor.
     auto &neighbors = _adj[srcId];
     neighbors.emplace_back(destId, weight);
+    _in_edges[destId].push_back(srcId);
 
     runtime.log(LogLevel::INFO, "Edge successfully added between vertices.");
 
@@ -192,6 +197,7 @@ public:
         VertexId destId = destIt->second;
 
         _adj[srcId].emplace_back(destId, weight);
+        _in_edges[destId].push_back(srcId);
       }
     }
     runtime.log(LogLevel::INFO, "Multiple edges processed successfully.");
@@ -227,6 +233,13 @@ public:
 
     retWeight = it->second;
     neighbors.erase(it);
+
+    auto &in_list = _in_edges[destId];
+    auto in_it = std::find(in_list.begin(), in_list.end(), srcId);
+    if (in_it != in_list.end()) {
+      in_list.erase(in_it);
+    }
+
     runtime.log(LogLevel::INFO, "Edge successfully removed between vertices.");
 
     return std::make_pair(retWeight, PeakStatus::OK());
@@ -410,16 +423,36 @@ public:
 
     VertexId id = it->second;
 
-    _adj.erase(id);
+    auto in_edges_it = _in_edges.find(id);
+    if (in_edges_it != _in_edges.end()) {
+      for (VertexId srcId : in_edges_it->second) {
+        auto adj_it = _adj.find(srcId);
+        if (adj_it != _adj.end()) {
+          auto &neighbors = adj_it->second;
+          neighbors.erase(
+              std::remove_if(neighbors.begin(), neighbors.end(),
+                             [&](const std::pair<VertexId, EdgeType> &edge) {
+                               return edge.first == id;
+                             }),
+              neighbors.end());
+        }
+      }
+      _in_edges.erase(in_edges_it);
+    }
 
-    for (auto &pair : _adj) {
-      auto &neighbors = pair.second;
-      neighbors.erase(
-          std::remove_if(neighbors.begin(), neighbors.end(),
-                         [&](const std::pair<VertexId, EdgeType> &edge) {
-                           return edge.first == id;
-                         }),
-          neighbors.end());
+    auto adj_it = _adj.find(id);
+    if (adj_it != _adj.end()) {
+      for (const auto &edge : adj_it->second) {
+        VertexId destId = edge.first;
+        auto in_adj_it = _in_edges.find(destId);
+        if (in_adj_it != _in_edges.end()) {
+          auto &in_list = in_adj_it->second;
+          in_list.erase(
+              std::remove(in_list.begin(), in_list.end(), id),
+              in_list.end());
+        }
+      }
+      _adj.erase(adj_it);
     }
 
     _vertex_lookup.erase(it);
@@ -433,6 +466,7 @@ public:
     runtime.log(LogLevel::DEBUG, "Executing impl_clearVertices");
     std::unique_lock<std::shared_mutex> lock(_mtx);
     _adj.clear();
+    _in_edges.clear();
     _vertex_lookup.clear();
     _vertex_data.clear();
     _next_vertex_id.store(1, std::memory_order_relaxed);
@@ -445,6 +479,9 @@ public:
     runtime.log(LogLevel::DEBUG, "Executing impl_clearEdges");
     std::unique_lock<std::shared_mutex> lock(_mtx);
     for (auto &pair : _adj) {
+      pair.second.clear();
+    }
+    for (auto &pair : _in_edges) {
       pair.second.clear();
     }
     runtime.log(LogLevel::INFO, "cleared all Edges from Graph.");
