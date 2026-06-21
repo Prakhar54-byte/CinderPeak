@@ -1,5 +1,7 @@
 #pragma once
 #include "StorageEngine/GraphContext.hpp"
+#include "StorageEngine/Utils.hpp"
+
 namespace CinderPeak {
 
 template <typename V, typename E> struct AddEdgeOperation {
@@ -12,5 +14,9 @@ template <typename V, typename E> struct AddEdgeOperation {
 
   bool weighted;
   bool directed;
+
+  CinderPeak::VertexId src_id{0};
+  CinderPeak::VertexId dest_id{0};
+  bool has_cached_ids{false};
 };
 } // namespace CinderPeak

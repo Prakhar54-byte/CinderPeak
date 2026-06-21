@@ -34,6 +34,8 @@ public:
   // Method to check whether a Vertex exists or not
   [[nodiscard]] virtual bool impl_hasVertex(const VertexType &v) noexcept = 0;
 
+  [[nodiscard]] virtual std::optional<VertexId> impl_lookupVertexId(const VertexType &v) const = 0;
+
   [[nodiscard]] virtual bool
   impl_doesEdgeExist(const VertexType &src, const VertexType &dest,
                      const EdgeType &weight) noexcept = 0;

@@ -500,6 +500,10 @@ public:
     return true;
   }
 
+  [[nodiscard]] std::optional<VertexId> impl_lookupVertexId(const VertexType &) const override {
+    return std::nullopt;
+  }
+
   [[nodiscard]] bool
   impl_doesEdgeExist(const VertexType &src, const VertexType &dest,
                      const EdgeType &weight) noexcept override {
