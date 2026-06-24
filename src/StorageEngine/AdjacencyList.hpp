@@ -311,6 +311,7 @@ public:
 
     return PeakStatus::OK();
   }
+
   [[nodiscard]] bool
   impl_doesEdgeExist(const VertexType &src,
                      const VertexType &dest) noexcept override {

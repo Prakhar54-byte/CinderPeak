@@ -7,13 +7,17 @@ template <typename V, typename E>
 PeakStatus validateAddEdge(AddEdgeOperation<V, E> &op) {
 
   auto *storage = op.ctx.active_storage.get();
-  if (!storage->impl_hasVertex(op.src) || !storage->impl_hasVertex(op.dest)) {
-
+  auto src_id_opt = storage->impl_lookupVertexId(op.src);
+  auto dest_id_opt = storage->impl_lookupVertexId(op.dest);
+  if (!src_id_opt || !dest_id_opt) {
     return PeakStatus::VertexNotFound("Source or destination vertex missing.");
   }
 
-  if (op.src == op.dest) {
+  op.src_id = *src_id_opt;
+  op.dest_id = *dest_id_opt;
+  op.has_cached_ids = true;
 
+  if (op.src == op.dest) {
     return PeakStatus::InvalidArgument("Self loops are not allowed.");
   }
 
