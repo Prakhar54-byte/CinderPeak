@@ -70,3 +70,37 @@ TEST_F(HybridStorageShardTest, PopulateFromAdjList_Large) {
         << "Incorrect weight for edge (" << i << "," << (i + 1) % 100 << ")";
   }
 }
+
+// Test populating from AdjacencyList storage engine
+TEST_F(HybridStorageShardTest, PopulateFromAdjacencyList_Basic) {
+  CinderPeak::GraphRuntime runtime;
+  AdjacencyList<int, int> adj_list(runtime);
+  (void)adj_list.impl_addVertex(1);
+  (void)adj_list.impl_addVertex(2);
+  (void)adj_list.impl_addVertex(3);
+  (void)adj_list.impl_addVertex(4);
+  (void)adj_list.impl_addVertex(5);
+
+  (void)adj_list.impl_addEdge(1, 2, 12);
+  (void)adj_list.impl_addEdge(1, 3, 13);
+  (void)adj_list.impl_addEdge(1, 4, 14);
+  (void)adj_list.impl_addEdge(2, 3, 23);
+  (void)adj_list.impl_addEdge(2, 4, 24);
+  (void)adj_list.impl_addEdge(3, 4, 34);
+  (void)adj_list.impl_addEdge(5, 1, 51);
+  (void)adj_list.impl_addEdge(5, 2, 52);
+
+  graph->populateFromAdjacencyList(adj_list);
+
+  auto [w12, s12] = graph->impl_getEdge(1, 2);
+  EXPECT_TRUE(s12.isOK()) << "Edge (1,2) not found";
+  EXPECT_EQ(w12, 12) << "Incorrect weight for edge (1,2)";
+  auto [w23, s23] = graph->impl_getEdge(2, 3);
+  EXPECT_TRUE(s23.isOK()) << "Edge (2,3) not found";
+  EXPECT_EQ(w23, 23) << "Incorrect weight for edge (2,3)";
+  auto [w51, s51] = graph->impl_getEdge(5, 1);
+  EXPECT_TRUE(s51.isOK()) << "Edge (5,1) not found";
+  EXPECT_EQ(w51, 51) << "Incorrect weight for edge (5,1)";
+  auto [w21, s21] = graph->impl_getEdge(2, 1);
+  EXPECT_FALSE(s21.isOK()) << "Non-existent edge (2,1) found";
+}

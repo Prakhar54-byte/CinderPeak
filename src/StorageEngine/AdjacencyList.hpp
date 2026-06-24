@@ -23,7 +23,8 @@ private:
   std::unordered_map<CinderPeak::VertexId,
                      std::vector<std::pair<CinderPeak::VertexId, EdgeType>>>
       _adj;
-  std::unordered_map<CinderPeak::VertexId, std::vector<CinderPeak::VertexId>> _in_edges;
+  std::unordered_map<CinderPeak::VertexId, std::vector<CinderPeak::VertexId>>
+      _in_edges;
   std::unordered_map<CinderPeak::VertexId, VertexType> _vertex_data;
   std::unordered_map<VertexType, CinderPeak::VertexId, VertexHasher<VertexType>>
       _vertex_lookup;
@@ -286,6 +287,30 @@ public:
     return _vertex_lookup.find(v) != _vertex_lookup.end();
   }
 
+  [[nodiscard]] std::optional<VertexId>
+  impl_lookupVertexId(const VertexType &v) const override {
+    std::shared_lock<std::shared_mutex> lock(_mtx);
+    auto it = _vertex_lookup.find(v);
+    if (it == _vertex_lookup.end())
+      return std::nullopt;
+    return it->second;
+  }
+
+  [[nodiscard]] const PeakStatus
+  impl_addEdge_with_ids(VertexId srcId, VertexId destId,
+                        const EdgeType &weight = EdgeType()) {
+    runtime.log(LogLevel::DEBUG, "Executing impl_addEdge_with_ids");
+    std::unique_lock<std::shared_mutex> lock(_mtx);
+
+    // Append neighbor.
+    auto &neighbors = _adj[srcId];
+    neighbors.emplace_back(destId, weight);
+    _in_edges[destId].push_back(srcId);
+
+    runtime.log(LogLevel::INFO, "Edge successfully added between vertices.");
+
+    return PeakStatus::OK();
+  }
   [[nodiscard]] bool
   impl_doesEdgeExist(const VertexType &src,
                      const VertexType &dest) noexcept override {
@@ -447,9 +472,8 @@ public:
         auto in_adj_it = _in_edges.find(destId);
         if (in_adj_it != _in_edges.end()) {
           auto &in_list = in_adj_it->second;
-          in_list.erase(
-              std::remove(in_list.begin(), in_list.end(), id),
-              in_list.end());
+          in_list.erase(std::remove(in_list.begin(), in_list.end(), id),
+                        in_list.end());
         }
       }
       _adj.erase(adj_it);
@@ -495,6 +519,11 @@ public:
   getInternalAdjacency() const {
     runtime.log(LogLevel::DEBUG, "Executing getInternalAdjacency");
     return _adj;
+  }
+  const std::unordered_map<VertexType, CinderPeak::VertexId,
+                           VertexHasher<VertexType>> &
+  getVertexLookupMap() const {
+    return _vertex_lookup;
   }
   struct DotConfig {
     std::string graphName = "G";

@@ -1,5 +1,6 @@
 #pragma once
 #include "../StorageInterface.hpp"
+#include "AdjacencyList.hpp"
 #include "StorageEngine/GraphContext.hpp"
 #include "Utils.hpp"
 #include <algorithm>
@@ -12,7 +13,11 @@
 
 namespace CinderPeak {
 template <typename, typename> class PeakStorageInterface;
+
 namespace PeakStore {
+
+template <typename VertexType, typename EdgeType>
+class AdjacencyList;
 
 template <typename VertexType, typename EdgeType>
 class HybridCSR_COO : public PeakStorageInterface<VertexType, EdgeType> {
@@ -280,6 +285,71 @@ public:
     buildStructures();
   }
 
+  void populateFromAdjacencyList(
+      const AdjacencyList<VertexType, EdgeType> &adj_list_src) {
+    std::unique_lock<std::shared_mutex> lock(_mtx);
+
+    is_built_.store(false, std::memory_order_relaxed);
+    clearCOOArrays();
+    vertex_order.clear();
+    vertex_to_index.clear();
+    _tombstoned.clear();
+
+    const auto &lookup = adj_list_src.getVertexLookupMap();
+    const auto &adj = adj_list_src.getInternalAdjacency();
+
+    if (lookup.empty()) {
+      lock.unlock();
+      buildStructures();
+      return;
+    }
+
+    VertexId max_id = 0;
+    for (const auto &[vtx, id] : lookup) {
+      if (id > max_id) {
+        max_id = id;
+      }
+    }
+
+    std::vector<size_t> translate(max_id + 1, SIZE_MAX);
+    vertex_order.reserve(lookup.size());
+    vertex_to_index.reserve(lookup.size());
+
+    for (const auto &[vtx, adj_id] : lookup) {
+      size_t hybrid_idx = vertex_order.size();
+      vertex_to_index[vtx] = hybrid_idx;
+      vertex_order.push_back(vtx);
+      if (adj_id <= max_id) {
+        translate[adj_id] = hybrid_idx;
+      }
+    }
+
+    size_t total_edges = 0;
+    for (const auto &[adj_src_id, neighbors] : adj) {
+      total_edges += neighbors.size();
+    }
+    coo_src.reserve(total_edges);
+    coo_dest.reserve(total_edges);
+    coo_weights.reserve(total_edges);
+
+    for (const auto &[adj_src_id, neighbors] : adj) {
+      size_t hybrid_src_idx = translate[adj_src_id];
+      if (hybrid_src_idx == SIZE_MAX)
+        continue;
+      for (const auto &[adj_dest_id, weight] : neighbors) {
+        size_t hybrid_dest_idx = translate[adj_dest_id];
+        if (hybrid_dest_idx == SIZE_MAX)
+          continue;
+        coo_src.push_back(hybrid_src_idx);
+        coo_dest.push_back(hybrid_dest_idx);
+        coo_weights.push_back(weight);
+      }
+    }
+
+    lock.unlock();
+    buildStructures();
+  }
+
   void setCOOThreshold(size_t threshold) {
     COO_BUFFER_THRESHOLD_.store(threshold, std::memory_order_relaxed);
   }
@@ -289,6 +359,11 @@ public:
                                std::vector<std::pair<VertexType, EdgeType>>,
                                VertexHasher<VertexType>> &adj_list) {
     populateFromAdjList(adj_list);
+  }
+
+  void orchestrator_rebuildFromAdjacencyList(
+      const AdjacencyList<VertexType, EdgeType> &adj_list) {
+    populateFromAdjacencyList(adj_list);
   }
 
   void orchestrator_mergeBuffer() {
@@ -500,6 +575,10 @@ public:
     return true;
   }
 
+  [[nodiscard]] std::optional<VertexId>
+  impl_lookupVertexId(const VertexType &) const override {
+    return std::nullopt;
+  }
   [[nodiscard]] bool
   impl_doesEdgeExist(const VertexType &src, const VertexType &dest,
                      const EdgeType &weight) noexcept override {

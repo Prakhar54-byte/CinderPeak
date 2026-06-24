@@ -115,3 +115,29 @@ TEST_F(HybridStorageOrchestratorTest, ConcurrentMergeAndAdd) {
   auto [w, s] = graph->impl_getEdge(1, 2);
   EXPECT_TRUE(s.isOK()) << "Edge should exist after concurrent ops";
 }
+
+#include "StorageEngine/AdjacencyList.hpp"
+
+TEST_F(HybridStorageOrchestratorTest, RebuildFromAdjacencyList) {
+  CinderPeak::GraphRuntime runtime;
+  AdjacencyList<int, int> adj_list(runtime);
+  (void)adj_list.impl_addVertex(1);
+  (void)adj_list.impl_addVertex(2);
+  (void)adj_list.impl_addVertex(3);
+
+  (void)adj_list.impl_addEdge(1, 2, 10);
+  (void)adj_list.impl_addEdge(1, 3, 20);
+  (void)adj_list.impl_addEdge(2, 3, 30);
+
+  graph->orchestrator_rebuildFromAdjacencyList(adj_list);
+
+  auto [w1, s1] = graph->impl_getEdge(1, 2);
+  EXPECT_TRUE(s1.isOK()) << "Edge (1,2) should exist after rebuild";
+  EXPECT_EQ(w1, 10) << "Weight of (1,2) incorrect";
+
+  auto [w2, s2] = graph->impl_getEdge(2, 3);
+  EXPECT_TRUE(s2.isOK()) << "Edge (2,3) should exist after rebuild";
+  EXPECT_EQ(w2, 30) << "Weight of (2,3) incorrect";
+
+  EXPECT_TRUE(graph->impl_hasVertex(3)) << "Vertex 3 should exist";
+}

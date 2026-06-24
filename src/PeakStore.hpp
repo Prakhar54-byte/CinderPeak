@@ -95,7 +95,13 @@ public:
                                    edgeStr(src, dest));
     }
     PeakStatus status;
-    if (op.weighted) {
+    auto adj_list_ptr =
+        std::dynamic_pointer_cast<AdjacencyList<VertexType, EdgeType>>(
+            ctx->active_storage);
+    if (adj_list_ptr && op.has_cached_ids) {
+      status =
+          adj_list_ptr->impl_addEdge_with_ids(op.src_id, op.dest_id, weight);
+    } else if (op.weighted) {
       status = ctx->active_storage->impl_addEdge(src, dest, weight);
     } else {
       status = ctx->active_storage->impl_addEdge(src, dest);
@@ -105,7 +111,10 @@ public:
     ctx->events.edgeAdded.emit({src, dest, weight});
     if (!op.directed) {
       PeakStatus rev_status;
-      if (op.weighted) {
+      if (adj_list_ptr && op.has_cached_ids) {
+        rev_status =
+            adj_list_ptr->impl_addEdge_with_ids(op.dest_id, op.src_id, weight);
+      } else if (op.weighted) {
         rev_status = ctx->active_storage->impl_addEdge(dest, src, weight);
       } else {
         rev_status = ctx->active_storage->impl_addEdge(dest, src);
@@ -121,6 +130,10 @@ public:
   }
   std::pair<EdgeType, PeakStatus> removeEdge(const VertexType &src,
                                              const VertexType &dest) {
+    if (src == dest) {
+      return {EdgeType(),
+              PeakStatus::InvalidArgument("Self loops are not allowed.")};
+    }
     ctx->log(LogLevel::INFO,
              "Called adjacency:removeEdge() for " + edgeStr(src, dest));
     auto result = ctx->active_storage->impl_removeEdge(src, dest);
@@ -146,6 +159,10 @@ public:
   std::pair<PeakStatus, EdgeType> updateEdge(const VertexType &src,
                                              const VertexType &dest,
                                              const EdgeType &newWeight) {
+    if (src == dest) {
+      return {PeakStatus::InvalidArgument("Self loops are not allowed."),
+              EdgeType()};
+    }
     ctx->log(LogLevel::INFO, "Called adjacency:updateEdge() for " +
                                  weightedEdgeStr(src, dest, newWeight));
 

@@ -1,8 +1,10 @@
 #pragma once
-#include "StorageEngine/AdjacencyList.hpp"
 #include "StorageEngine/ErrorCodes.hpp"
-#include "StorageEngine/HybridCSR_COO.hpp"
 #include "StorageEngine/Utils.hpp"
+#include <optional>
+#include <vector>
+#include <tuple>
+#include <utility>
 
 namespace CinderPeak {
 template <typename VertexType, typename EdgeType> class PeakStorageInterface {
@@ -34,6 +36,8 @@ public:
   // Method to check whether a Vertex exists or not
   [[nodiscard]] virtual bool impl_hasVertex(const VertexType &v) noexcept = 0;
 
+  [[nodiscard]] virtual std::optional<VertexId>
+  impl_lookupVertexId(const VertexType &v) const = 0;
   [[nodiscard]] virtual bool
   impl_doesEdgeExist(const VertexType &src, const VertexType &dest,
                      const EdgeType &weight) noexcept = 0;
