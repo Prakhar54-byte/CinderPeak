@@ -2,9 +2,9 @@
 #include "StorageEngine/ErrorCodes.hpp"
 #include "StorageEngine/Utils.hpp"
 #include <optional>
-#include <vector>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 namespace CinderPeak {
 template <typename VertexType, typename EdgeType> class PeakStorageInterface {

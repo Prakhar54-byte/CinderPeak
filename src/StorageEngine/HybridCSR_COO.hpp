@@ -16,8 +16,7 @@ template <typename, typename> class PeakStorageInterface;
 
 namespace PeakStore {
 
-template <typename VertexType, typename EdgeType>
-class AdjacencyList;
+template <typename VertexType, typename EdgeType> class AdjacencyList;
 
 template <typename VertexType, typename EdgeType>
 class HybridCSR_COO : public PeakStorageInterface<VertexType, EdgeType> {
