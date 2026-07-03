@@ -68,8 +68,12 @@ public:
     return "[" + std::to_string(static_cast<int>(code_)) + "] " + message_;
   }
 
-  bool operator==(const PeakStatus &other) const { return code_ == other.code_; }
-  bool operator!=(const PeakStatus &other) const { return code_ != other.code_; }
+  bool operator==(const PeakStatus &other) const {
+    return code_ == other.code_;
+  }
+  bool operator!=(const PeakStatus &other) const {
+    return code_ != other.code_;
+  }
 
   friend std::ostream &operator<<(std::ostream &os, const PeakStatus &status) {
     os << status.toString();

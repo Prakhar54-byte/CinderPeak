@@ -23,7 +23,8 @@ private:
   std::unordered_map<CinderPeak::VertexId,
                      std::vector<std::pair<CinderPeak::VertexId, EdgeType>>>
       _adj;
-  std::unordered_map<CinderPeak::VertexId, std::vector<CinderPeak::VertexId>> _in_edges;
+  std::unordered_map<CinderPeak::VertexId, std::vector<CinderPeak::VertexId>>
+      _in_edges;
   std::unordered_map<CinderPeak::VertexId, VertexType> _vertex_data;
   std::unordered_map<VertexType, CinderPeak::VertexId, VertexHasher<VertexType>>
       _vertex_lookup;
@@ -447,9 +448,8 @@ public:
         auto in_adj_it = _in_edges.find(destId);
         if (in_adj_it != _in_edges.end()) {
           auto &in_list = in_adj_it->second;
-          in_list.erase(
-              std::remove(in_list.begin(), in_list.end(), id),
-              in_list.end());
+          in_list.erase(std::remove(in_list.begin(), in_list.end(), id),
+                        in_list.end());
         }
       }
       _adj.erase(adj_it);
